@@ -1,0 +1,26 @@
+# Local diagnostics generated on this machine — never publish
+_diag/
+.preview/
+
+# OS metadata
+Thumbs.db
+Desktop.ini
+desktop.ini
+.DS_Store
+
+# Editor folders
+.vscode/
+.idea/
+
+# Local archives
+*.zip
+*.7z
+*.rar
+
+# Node-related artifacts (this site does not need them, but keep them out)
+node_modules/
+npm-debug.log*
+
+# Local environment files
+.env
+.env.*
