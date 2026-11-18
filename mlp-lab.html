@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f2f0e8">
+  <meta name="description" content="MLP 学习参数实验室：从零实现 2-2-1 神经网络在 XOR 上的训练，交互观察权重、偏置、损失、隐藏表示与决策边界。">
+  <title>MLP 学习参数实验室 — Carlos Tau</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="mlp-lab.css">
+  <script src="mlp-lab.js" defer></script>
+</head>
+<body class="lab-page">
+  <a class="skip-link" href="#lab-main">跳到主要内容</a>
+
+  <header class="lab-header">
+    <div class="lab-nav">
+      <a class="brand" href="index.html" aria-label="Carlos Tau，返回个人网站">
+        <span class="brand-mark" aria-hidden="true">CT</span>
+        <span class="brand-name">Carlos Tau<span class="brand-dot">.</span></span>
+      </a>
+      <div class="lab-nav-center" aria-hidden="true">
+        <span>COURSE 15</span>
+        <i></i>
+        <span>MLP LAB</span>
+      </div>
+      <a class="lab-back" href="index.html#outcomes">
+        <span aria-hidden="true">←</span>
+        <span class="lab-back-long">返回个人网站</span>
+        <span class="lab-back-short">返回</span>
+      </a>
+    </div>
+  </header>
+
+  <main id="lab-main">
+    <!-- =====================================================
+         HERO
+         ===================================================== -->
+    <section class="lab-hero">
+      <div class="lab-shell">
+        <div class="lab-hero-top">
+          <p><span class="live-dot" aria-hidden="true"></span> COURSE ASSIGNMENT / CHAPTER 15</p>
+          <p>ARTIFICIAL INTELLIGENCE / 2026.11</p>
+        </div>
+
+        <div class="lab-hero-grid">
+          <div class="lab-hero-copy">
+            <p class="eyebrow">MULTI-LAYER PERCEPTRON / XOR</p>
+            <h1>把参数<br><span>学明白。</span></h1>
+            <p class="lab-hero-lede">
+              一个 2–2–1 多层感知机的学习参数实验室。<br>
+              播放训练，或拖动时间轴，观察权重、偏置、损失和隐藏表示怎样一起改变。
+            </p>
+            <div class="lab-hero-actions">
+              <a class="lab-button lab-button--dark" href="#lab">
+                打开实验
+                <span class="lab-button-icon" aria-hidden="true">↓</span>
+              </a>
+              <a class="lab-text-link" href="assets/mlp_xor_lab.py" download>
+                下载 Python 脚本
+                <span aria-hidden="true">↗</span>
+              </a>
+            </div>
+            <dl class="lab-hero-facts" aria-label="实验参数">
+              <div><dt>DATA</dt><dd>4 XOR samples</dd></div>
+              <div><dt>ARCH</dt><dd>2 → 2 → 1</dd></div>
+              <div><dt>LOSS</dt><dd>BCE with logits</dd></div>
+              <div><dt>OPT</dt><dd>Adam · lr 0.03</dd></div>
+            </dl>
+          </div>
+
+          <aside class="result-card" aria-label="默认训练 300 轮后的 XOR 输出概率">
+            <div class="result-card-top">
+              <span>REFERENCE RUN / 300 EPOCHS</span>
+              <span class="result-ok"><i aria-hidden="true"></i> 100% ACC</span>
+            </div>
+            <div class="result-grid">
+              <div class="result-tile result-tile--zero">
+                <span class="result-input">00</span>
+                <strong>0.029</strong>
+                <small>target 0</small>
+              </div>
+              <div class="result-tile result-tile--one">
+                <span class="result-input">01</span>
+                <strong>0.975</strong>
+                <small>target 1</small>
+              </div>
+              <div class="result-tile result-tile--one">
+                <span class="result-input">10</span>
+                <strong>0.975</strong>
+                <small>target 1</small>
+              </div>
+              <div class="result-tile result-tile--zero">
+                <span class="result-input">11</span>
+                <strong>0.031</strong>
+                <small>target 0</small>
+              </div>
+            </div>
+            <div class="result-card-foot">
+              <div><span>LOSS</span><strong>0.0279</strong></div>
+              <div><span>PARAMS</span><strong>09</strong></div>
+              <div><span>LEARNING RATE</span><strong>0.03</strong></div>
+            </div>
+            <p class="result-card-note">P(y = 1) / 默认初始参数与全批量训练</p>
+          </aside>
+        </div>
+
+        <div class="lab-hero-foot">
+          <span>ASSIGNMENT / 第二篇 15 节</span>
+          <span>SCROLL TO RUN THE MODEL ↓</span>
+          <span>HUMAN × AGENT / 2026</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================
+         INTERACTIVE LAB
+         ===================================================== -->
+    <section class="lab-section lab-interactive" id="lab">
+      <div class="lab-shell">
+        <header class="lab-section-head">
+          <span class="lab-section-index">01</span>
+          <div>
+            <p class="eyebrow">LIVE EXPERIMENT</p>
+            <h2>训练现场<span class="accent-dot">.</span></h2>
+          </div>
+          <p class="lab-section-note">拖动时间轴，比较第 0 轮和收敛后的每一个参数。</p>
+        </header>
+
+        <noscript>
+          <p class="lab-noscript">这个交互实验需要 JavaScript。你仍然可以下载 Python 脚本查看完整训练过程。</p>
+        </noscript>
+
+        <div class="lab-console">
+          <div class="lab-console-top">
+            <div class="lab-controls" aria-label="训练控制">
+              <button class="lab-button lab-button--lime" id="play-btn" type="button">
+                <span class="play-icon" id="play-icon" aria-hidden="true">▶</span>
+                <span id="play-label">播放训练</span>
+              </button>
+              <button class="lab-button lab-button--ghost" id="step-btn" type="button">单步 +1</button>
+              <button class="lab-button lab-button--ghost" id="finish-btn" type="button">跳到终点</button>
+              <button class="lab-button lab-button--ghost" id="reset-btn" type="button">重置</button>
+              <label class="lab-select-label" for="lr-select">
+                学习率
+                <select id="lr-select">
+                  <option value="0.01">0.01</option>
+                  <option value="0.03" selected>0.03</option>
+                  <option value="0.06">0.06</option>
+                  <option value="0.10">0.10</option>
+                </select>
+              </label>
+            </div>
+            <p class="lab-status"><span class="lab-status-dot" id="status-dot" aria-hidden="true"></span><span id="status-label">准备就绪</span></p>
+          </div>
+
+          <div class="lab-timeline">
+            <label for="epoch-range" class="sr-only">训练轮次</label>
+            <input id="epoch-range" type="range" min="0" max="300" value="0" step="1">
+            <div class="lab-timeline-labels" aria-hidden="true">
+              <span>EPOCH <b id="epoch-readout">000</b> / 300</span>
+              <span>0 ——— 50 ——— 100 ——— 150 ——— 200 ——— 250 ——— 300</span>
+            </div>
+          </div>
+
+          <div class="lab-console-main">
+            <div class="lab-network-panel">
+              <div class="lab-panel-label">
+                <span>NETWORK / 2—2—1</span>
+                <span>FORWARD PASS</span>
+              </div>
+              <svg id="network-svg" viewBox="0 0 760 400" role="img" aria-label="2-2-1 神经网络及当前权重、偏置">
+                <desc>输入层两个节点，隐藏层两个 sigmoid 节点，输出层一个节点。连线表示权重。</desc>
+              </svg>
+              <div class="lab-network-legend">
+                <span><i class="edge-positive" aria-hidden="true"></i> 正权重</span>
+                <span><i class="edge-negative" aria-hidden="true"></i> 负权重</span>
+                <span>线宽 ≈ |w|</span>
+              </div>
+            </div>
+
+            <aside class="lab-params" aria-label="当前可学习参数">
+              <div class="lab-panel-label">
+                <span>PARAMETERS</span>
+                <span>09 VALUES</span>
+              </div>
+              <div class="lab-param-group">
+                <p class="lab-param-title">W / INPUT → HIDDEN</p>
+                <div class="matrix">
+                  <span class="matrix-corner" aria-hidden="true"></span>
+                  <span>h₁</span><span>h₂</span>
+                  <span>x₁</span><span data-param="w0">2.000</span><span data-param="w1">−2.000</span>
+                  <span>x₂</span><span data-param="w2">−2.000</span><span data-param="w3">2.000</span>
+                </div>
+              </div>
+              <div class="lab-param-row">
+                <span class="lab-param-title">b<sub>h</sub> / HIDDEN BIAS</span>
+                <span class="lab-param-values"><b data-param="bh0">−1.000</b><b data-param="bh1">−1.000</b></span>
+              </div>
+              <div class="lab-param-row">
+                <span class="lab-param-title">v / OUTPUT WEIGHTS</span>
+                <span class="lab-param-values"><b data-param="v0">3.000</b><b data-param="v1">3.000</b></span>
+              </div>
+              <div class="lab-param-row">
+                <span class="lab-param-title">b<sub>o</sub> / OUTPUT BIAS</span>
+                <span class="lab-param-values"><b data-param="bo">−2.500</b></span>
+              </div>
+              <p class="lab-param-note">每次更新同时改变 9 个数字；这里展示当前 epoch 的值。</p>
+            </aside>
+          </div>
+
+          <div class="lab-metrics">
+            <div class="lab-metric">
+              <span>EPOCH</span>
+              <strong id="metric-epoch">000</strong>
+              <small>/ 300</small>
+            </div>
+            <div class="lab-metric">
+              <span>BCE LOSS</span>
+              <strong id="metric-loss">0.5620</strong>
+              <small>↓</small>
+            </div>
+            <div class="lab-metric">
+              <span>ACCURACY</span>
+              <strong id="metric-acc">50%</strong>
+              <small>4 samples</small>
+            </div>
+            <div class="lab-metric">
+              <span>LEARNING RATE</span>
+              <strong id="metric-lr">0.03</strong>
+              <small>Adam</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="lab-viz-grid">
+          <figure class="lab-viz lab-viz--boundary">
+            <figcaption class="lab-viz-head">
+              <div>
+                <span class="lab-fig-tag">FIG. A</span>
+                <h3>决策边界 / 概率场</h3>
+              </div>
+              <span class="lab-viz-meta">P(y = 1) / INPUT SPACE</span>
+            </figcaption>
+            <div class="lab-canvas-wrap">
+              <canvas id="boundary-canvas" width="660" height="660" role="img" aria-label="XOR 输入平面上的模型概率场和决策边界">
+                当前模型的 XOR 决策边界。
+              </canvas>
+            </div>
+            <div class="lab-chart-legend">
+              <span><i class="legend-zero" aria-hidden="true"></i> 模型倾向 0</span>
+              <span><i class="legend-one" aria-hidden="true"></i> 模型倾向 1</span>
+              <span><i class="legend-line" aria-hidden="true"></i> P = 0.5</span>
+            </div>
+            <p class="lab-caption">颜色表示模型在输入平面上对类别 1 的信心；虚线是 0.5 决策边界。</p>
+          </figure>
+
+          <figure class="lab-viz lab-viz--output">
+            <figcaption class="lab-viz-head">
+              <div>
+                <span class="lab-fig-tag">FIG. B</span>
+                <h3>输出 / 四个 XOR 样本</h3>
+              </div>
+              <span class="lab-viz-meta">CURRENT EPOCH</span>
+            </figcaption>
+            <table class="output-table">
+              <caption class="sr-only">当前 epoch 的 XOR 输出概率与预测结果</caption>
+              <thead>
+                <tr>
+                  <th scope="col">INPUT</th>
+                  <th scope="col">TARGET</th>
+                  <th scope="col">P(y=1)</th>
+                  <th scope="col">PRED</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr data-sample="0">
+                  <td><span class="sample-dot sample-dot--zero" aria-hidden="true"></span>00</td>
+                  <td>0</td>
+                  <td><div class="prob-cell"><span class="prob-track"><i class="prob-fill"></i></span><b class="prob-value">0.292</b></div></td>
+                  <td><span class="pred-chip">0</span></td>
+                </tr>
+                <tr data-sample="1">
+                  <td><span class="sample-dot sample-dot--one" aria-hidden="true"></span>01</td>
+                  <td>1</td>
+                  <td><div class="prob-cell"><span class="prob-track"><i class="prob-fill"></i></span><b class="prob-value">0.459</b></div></td>
+                  <td><span class="pred-chip">0</span></td>
+                </tr>
+                <tr data-sample="2">
+                  <td><span class="sample-dot sample-dot--one" aria-hidden="true"></span>10</td>
+                  <td>1</td>
+                  <td><div class="prob-cell"><span class="prob-track"><i class="prob-fill"></i></span><b class="prob-value">0.459</b></div></td>
+                  <td><span class="pred-chip">0</span></td>
+                </tr>
+                <tr data-sample="3">
+                  <td><span class="sample-dot sample-dot--zero" aria-hidden="true"></span>11</td>
+                  <td>0</td>
+                  <td><div class="prob-cell"><span class="prob-track"><i class="prob-fill"></i></span><b class="prob-value">0.292</b></div></td>
+                  <td><span class="pred-chip">0</span></td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="output-bars" id="output-bars" aria-hidden="true">
+              <div class="output-bar" data-bar="0" data-type="zero">
+                <span class="output-bar-value">0.292</span>
+                <span class="output-bar-track"><i></i></span>
+                <span class="output-bar-label">00</span>
+              </div>
+              <div class="output-bar" data-bar="1" data-type="one">
+                <span class="output-bar-value">0.459</span>
+                <span class="output-bar-track"><i></i></span>
+                <span class="output-bar-label">01</span>
+              </div>
+              <div class="output-bar" data-bar="2" data-type="one">
+                <span class="output-bar-value">0.459</span>
+                <span class="output-bar-track"><i></i></span>
+                <span class="output-bar-label">10</span>
+              </div>
+              <div class="output-bar" data-bar="3" data-type="zero">
+                <span class="output-bar-value">0.292</span>
+                <span class="output-bar-track"><i></i></span>
+                <span class="output-bar-label">11</span>
+              </div>
+            </div>
+            <div class="output-rule">
+              <span>THRESHOLD</span>
+              <b>p ≥ 0.50 → 1</b>
+              <span>4 SAMPLES</span>
+            </div>
+            <p class="lab-caption">分类阈值固定为 0.5；绿色表示预测与目标一致。</p>
+          </figure>
+        </div>
+
+        <div class="lab-viz-grid lab-viz-grid--second">
+          <figure class="lab-viz">
+            <figcaption class="lab-viz-head">
+              <div>
+                <span class="lab-fig-tag">FIG. C</span>
+                <h3>隐藏表示 / 点的移动</h3>
+              </div>
+               <span class="lab-viz-meta">h₁ / h₂</span>
+            </figcaption>
+            <svg id="hidden-chart" viewBox="0 0 380 330" role="img" aria-label="四个 XOR 样本在隐藏层特征空间中的轨迹和当前位置">
+              <desc>隐藏层把 00 和 11 移向一起，把 01 和 10 分开。</desc>
+            </svg>
+            <div class="lab-chart-legend">
+              <span><i class="legend-zero" aria-hidden="true"></i> target = 0</span>
+              <span><i class="legend-one" aria-hidden="true"></i> target = 1</span>
+              <span>细线 = 0 → 当前</span>
+            </div>
+            <p class="lab-caption">训练后，同类点靠拢，异类点分开；虚线是一个线性读出的示意，表示隐藏空间已经可分。</p>
+          </figure>
+
+          <figure class="lab-viz">
+            <figcaption class="lab-viz-head">
+              <div>
+                <span class="lab-fig-tag">FIG. D</span>
+                <h3>损失曲线 / BCE</h3>
+              </div>
+              <span class="lab-viz-meta">LOSS ↓</span>
+            </figcaption>
+            <svg id="loss-chart" viewBox="0 0 720 300" role="img" aria-label="二值交叉熵损失随 epoch 下降的曲线">
+              <desc>损失从 0.562 下降到约 0.028。</desc>
+            </svg>
+            <div class="lab-chart-legend">
+              <span><i class="legend-loss" aria-hidden="true"></i> BCE loss</span>
+              <span>current / <b id="loss-current">0.5620</b></span>
+            </div>
+            <p class="lab-caption">优化器每次只根据当前梯度调整参数；损失下降并不等于某个参数的单调变化。</p>
+          </figure>
+        </div>
+
+        <figure class="lab-viz lab-params-card">
+          <figcaption class="lab-viz-head">
+            <div>
+              <span class="lab-fig-tag">FIG. E</span>
+              <h3>参数轨迹 / 9 个数字</h3>
+            </div>
+            <span class="lab-viz-meta">W · b<sub>h</sub> · v · b<sub>o</sub></span>
+          </figcaption>
+          <div class="param-charts">
+            <div class="param-chart">
+              <div class="param-chart-head"><span>W / INPUT → HIDDEN</span><span>04 VALUES</span></div>
+              <svg id="chart-w" viewBox="0 0 380 180" role="img" aria-label="W 的四个权重随训练变化"></svg>
+              <div class="param-legend" id="legend-w"></div>
+            </div>
+            <div class="param-chart">
+              <div class="param-chart-head"><span>b<sub>h</sub> / HIDDEN BIAS</span><span>02 VALUES</span></div>
+              <svg id="chart-bh" viewBox="0 0 380 180" role="img" aria-label="隐藏层偏置随训练变化"></svg>
+              <div class="param-legend" id="legend-bh"></div>
+            </div>
+            <div class="param-chart">
+              <div class="param-chart-head"><span>v &amp; b<sub>o</sub> / OUTPUT</span><span>03 VALUES</span></div>
+              <svg id="chart-out" viewBox="0 0 380 180" role="img" aria-label="输出层权重和偏置随训练变化"></svg>
+              <div class="param-legend" id="legend-out"></div>
+            </div>
+          </div>
+          <p class="lab-caption">相同颜色跨图无关联；每张小图独立缩放，数值标签跟随当前 epoch。</p>
+        </figure>
+      </div>
+    </section>
+
+    <!-- =====================================================
+         READING THE RESULT
+         ===================================================== -->
+    <section class="lab-section lab-reading">
+      <div class="lab-shell">
+        <header class="lab-section-head">
+          <span class="lab-section-index">02</span>
+          <div>
+            <p class="eyebrow">READING THE RESULT</p>
+            <h2>发生了什么<span class="accent-dot">.</span></h2>
+          </div>
+          <p class="lab-section-note">默认运行：lr 0.03 · 300 epochs · 全批量。</p>
+        </header>
+
+        <div class="observation-grid">
+          <article class="observation-card">
+            <span class="observation-index">OBS. 01 / LOSS</span>
+            <p class="observation-big">0.562 → 0.0279</p>
+            <h3>误差持续下降</h3>
+            <p>初始时四个样本的概率都靠近 0.5，模型没有立场；第 300 轮后，两个类别分别被推到 0.03 和 0.97 附近。</p>
+            <span class="observation-note">BCE / 4 samples</span>
+          </article>
+          <article class="observation-card">
+            <span class="observation-index">OBS. 02 / HIDDEN</span>
+            <p class="observation-big">00 + 11 → 左下</p>
+            <h3>隐藏层重排了数据</h3>
+            <p>00 和 11 在输入空间分别位于对角，但在隐藏空间里一起靠近原点；01 和 10 被推向两个轴。异或问题因此变得可分。</p>
+            <span class="observation-note">h₁ / h₂ / sigmoid</span>
+          </article>
+          <article class="observation-card">
+            <span class="observation-index">OBS. 03 / PARAMS</span>
+            <p class="observation-big">9 个参数一起走</p>
+            <h3>没有哪个数单独完成学习</h3>
+            <p>W 的方向性增强，隐藏偏置整体下移，输出层权重放大。前向表示和输出读出是被同一条损失曲线一起塑形的。</p>
+            <span class="observation-note">W · b<sub>h</sub> · v · b<sub>o</sub></span>
+          </article>
+        </div>
+
+        <div class="analysis-grid">
+          <div class="analysis-copy">
+            <p class="eyebrow">THE MECHANISM</p>
+            <h3>隐藏层不是装饰。</h3>
+            <p>
+              单层感知器只能画一条直线，而 XOR 的两类点在对角位置。这个网络先用两个 sigmoid 隐藏单元构造新的特征坐标，再让输出层在新的坐标里做判断。
+            </p>
+            <p>
+              对 00 和 11 来说，两个隐藏单元同时处于较低或相近的激活；对 01 和 10 来说，总会有一个隐藏单元被激活。输出层只需要把这两个方向组合起来，就能得到 XOR。
+            </p>
+            <p class="analysis-quote">“参数不是一堆数字，而是模型逐渐长出来的世界观。”</p>
+          </div>
+
+          <div class="formula-card">
+            <div class="formula-group">
+              <span class="formula-label">FORWARD / 前向</span>
+              <code>h = σ(xW + b<sub>h</sub>)</code>
+              <code>logits = h v + b<sub>o</sub></code>
+              <code>p = σ(logits)</code>
+            </div>
+            <div class="formula-group">
+              <span class="formula-label">OBJECTIVE / 目标</span>
+              <code>L = mean(BCEWithLogits)</code>
+            </div>
+            <div class="formula-group">
+              <span class="formula-label">UPDATE / 更新</span>
+              <code>Adam(θ, ∇L, lr = 0.03)</code>
+            </div>
+          </div>
+        </div>
+
+        <div class="parameter-table-card">
+          <div class="parameter-table-head">
+            <div>
+              <p class="eyebrow">INITIAL → FINAL</p>
+              <h3>参数最终去了哪里</h3>
+            </div>
+            <span class="parameter-pill">DEFAULT RUN</span>
+          </div>
+          <table class="parameter-table">
+            <caption class="sr-only">初始参数与 300 轮后参数对比</caption>
+            <thead>
+              <tr><th scope="col">PARAMETER</th><th scope="col">INITIAL</th><th scope="col">FINAL</th><th scope="col">CHANGE</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>W₁₁ / W₁₂</td><td>2.000 / −2.000</td><td>6.137 / −6.014</td><td>方向性增强</td></tr>
+              <tr><td>W₂₁ / W₂₂</td><td>−2.000 / 2.000</td><td>−6.014 / 6.137</td><td>方向性增强</td></tr>
+              <tr><td>b<sub>h1</sub> / b<sub>h2</sub></td><td>−1.000 / −1.000</td><td>−3.473 / −3.473</td><td>更偏向关闭</td></tr>
+              <tr><td>v₁ / v₂</td><td>3.000 / 3.000</td><td>8.192 / 8.192</td><td>读出放大</td></tr>
+              <tr><td>b<sub>o</sub></td><td>−2.500</td><td>−4.014</td><td>整体下移</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================
+         METHOD / REPRODUCE
+         ===================================================== -->
+    <section class="lab-section lab-method" id="method">
+      <div class="lab-shell">
+        <header class="lab-section-head">
+          <span class="lab-section-index">03</span>
+          <div>
+            <p class="eyebrow">METHOD / REPRODUCE</p>
+            <h2>怎么做的<span class="accent-dot">.</span></h2>
+          </div>
+          <p class="lab-section-note">课程示例的完整复现，以及一个可交互版本。</p>
+        </header>
+
+        <div class="method-grid">
+          <div class="method-copy">
+            <p class="eyebrow">PROTOCOL</p>
+            <h3>一个最小的 XOR 学习实验</h3>
+            <p>
+              模型是 2 个输入、2 个 sigmoid 隐藏单元、1 个 sigmoid 输出。四个 XOR 样本作为整批数据，使用二元交叉熵和 Adam，训练 300 轮。
+            </p>
+            <ol class="protocol-list">
+              <li><span>01</span><p><strong>定义数据</strong> 四个输入组合，目标为 0 / 1 / 1 / 0。</p></li>
+              <li><span>02</span><p><strong>前向计算</strong> 输入乘权重，通过隐藏层 sigmoid 得到两个中间特征。</p></li>
+              <li><span>03</span><p><strong>计算损失</strong> 将输出 logit 与目标比较，得到 BCE。</p></li>
+              <li><span>04</span><p><strong>反向传播</strong> 用链式法则计算 9 个参数的梯度。</p></li>
+              <li><span>05</span><p><strong>Adam 更新</strong> 根据一阶、二阶矩估计调整每个参数。</p></li>
+            </ol>
+            <div class="method-links">
+              <a class="lab-button lab-button--dark" href="assets/mlp_xor_lab.py" download>
+                下载完整 Python 脚本
+                <span class="lab-button-icon" aria-hidden="true">↓</span>
+              </a>
+              <a class="lab-text-link" href="assets/mlp_xor_lab.png" target="_blank" rel="noopener">
+                查看 matplotlib 结果图
+                <span aria-hidden="true">↗</span>
+              </a>
+            </div>
+            <p class="method-source">
+              课程参考：
+              <a href="https://zhumy.github.io/Introduction_to_Artificial_Intelligence/#chapter-15" target="_blank" rel="noopener">《人工智能概论》第 15 节 · 人工神经元网络 ↗</a>
+            </p>
+          </div>
+
+          <div class="code-card">
+            <div class="code-head">
+              <span>mlp_xor_lab.py / training loop</span>
+              <button class="code-copy" id="copy-code" type="button">复制代码</button>
+            </div>
+            <pre><code id="code-sample">for epoch in range(1, epochs + 1):
+    loss, grad = loss_and_gradients(theta)
+
+    # Adam: keep a first and second moment for every parameter
+    m = beta1 * m + (1 - beta1) * grad
+    s = beta2 * s + (1 - beta2) * grad * grad
+    m_hat = m / (1 - beta1 ** epoch)
+    s_hat = s / (1 - beta2 ** epoch)
+
+    theta -= lr * m_hat / (np.sqrt(s_hat) + eps)
+
+    history.append(make_state(epoch, theta))
+
+# 9 parameters, 4 XOR samples, one full-batch update per epoch
+print(history[-1].probs)  # [0.0287 0.9745 0.9745 0.0305]</code></pre>
+          </div>
+        </div>
+
+        <div class="method-foot">
+          <p><span>FILES</span> 完整实验脚本与 matplotlib 图已经作为课程成果归档。</p>
+          <a href="index.html#outcomes">返回课程成果 <span aria-hidden="true">↗</span></a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="lab-footer">
+    <div class="lab-shell lab-footer-grid">
+      <a class="brand brand--footer" href="index.html" aria-label="回到个人网站">
+        <span class="brand-mark" aria-hidden="true">CT</span>
+        <span class="brand-name">Carlos Tau<span class="brand-dot">.</span></span>
+      </a>
+      <p>课程作业 / 第二篇 15 节<br>MLP 学习参数 · 2026.11</p>
+      <div class="lab-footer-meta">
+        <span>COURSE ARCHIVE / R—004</span>
+        <a href="index.html#outcomes">返回课程成果 <span aria-hidden="true">↑</span></a>
+      </div>
+    </div>
+    <div class="lab-shell lab-footer-bottom">
+      <span>© 2026 Carlos Tau.</span>
+      <span>Built for learning, not for magic.</span>
+    </div>
+  </footer>
+</body>
+</html>

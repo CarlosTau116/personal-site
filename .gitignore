@@ -1,6 +1,8 @@
 # Local diagnostics generated on this machine — never publish
 _diag/
 .preview/
+.qa/
+.research/
 
 # OS metadata
 Thumbs.db
@@ -20,6 +22,10 @@ desktop.ini
 # Node-related artifacts (this site does not need them, but keep them out)
 node_modules/
 npm-debug.log*
+
+# Python cache (only the standalone MLP script is used)
+__pycache__/
+*.pyc
 
 # Local environment files
 .env

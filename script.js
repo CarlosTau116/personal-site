@@ -53,7 +53,7 @@
      --------------------------------------------------------- */
   const header = $('#site-header');
   const progressBar = $('.scroll-progress span');
-  const sections = ['about', 'agents', 'projects']
+  const sections = ['about', 'agents', 'projects', 'outcomes']
     .map((id) => document.getElementById(id))
     .filter(Boolean);
   const navLinks = $$('[data-nav]');
@@ -78,7 +78,7 @@
       if (section.offsetTop <= marker) activeId = section.id;
     });
 
-    // Once the closing section fills the lower viewport, none of 01–03 is active.
+    // Once the closing section fills the lower viewport, no chapter link is active.
     const outro = document.getElementById('outro');
     if (outro && top + window.innerHeight * 0.7 > outro.offsetTop) activeId = '';
 
@@ -176,6 +176,16 @@
 
     revealItems.forEach((item) => revealObserver.observe(item));
   }
+
+  /* ---------------------------------------------------------
+     Course archive count
+     --------------------------------------------------------- */
+  const archiveRecords = $$('.archive-item:not(.archive-item--next)');
+  const archiveCount = String(archiveRecords.length).padStart(2, '0');
+
+  $$('[data-archive-count]').forEach((element) => {
+    element.textContent = archiveCount;
+  });
 
   /* ---------------------------------------------------------
      Agent card spotlight
@@ -415,7 +425,7 @@
     }
   };
 
-  $$('.project-open').forEach((button) => {
+  $$('[data-project]').forEach((button) => {
     button.addEventListener('click', () => {
       openDialog(button.dataset.project, button);
     });
