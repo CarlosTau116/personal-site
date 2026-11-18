@@ -9,6 +9,10 @@
 
 网站使用原生 HTML、CSS、JavaScript 构建，**没有任何依赖，也不需要打包**。
 
+- 线上网站：<https://carlostau116.github.io/personal-site/>
+- GitHub 仓库：<https://github.com/CarlosTau116/personal-site>
+- 当前本地目录已经连接到该仓库的 `main` 分支，后续修改可直接提交并推送。
+
 ---
 
 ## 1. 如何打开
@@ -36,6 +40,14 @@ http://127.0.0.1:4173
 ### 部署到 GitHub Pages
 
 完整步骤见 [DEPLOY_GITHUB_PAGES.md](DEPLOY_GITHUB_PAGES.md)，包含 Git 推送、网页上传、开启 Pages 和常见问题排查。
+
+> 当前本地目录已经完成过初始化与关联，**不需要再次执行 `git init` 或 `git remote add`**。后续修改后运行：
+>
+> ```powershell
+> git add .
+> git commit -m "更新个人网站"
+> git push
+> ```
 
 ---
 
